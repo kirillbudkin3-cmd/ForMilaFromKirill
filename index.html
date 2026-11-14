@@ -49,8 +49,19 @@
       <button class="nav-btn" data-page="reasons"><span class="ico">❤️</span>Причины любви</button>
       <button class="nav-btn" data-page="achievements"><span class="ico">🏆</span>Наши ачивки</button>
       <button class="nav-btn" data-page="sky"><span class="ico">🌌</span>Звёздное небо</button>
+      <button class="nav-btn" data-page="future"><span class="ico">🔮</span>Наше будущее</button>
     </nav>
     <div class="side-foot">
+      <div class="mood" id="moodSwitch">
+        <div class="mood-label">Время суток: <b id="moodName">—</b></div>
+        <div class="mood-btns">
+          <button type="button" data-mood="auto" title="Автоматически по времени" class="on">⏱</button>
+          <button type="button" data-mood="dawn" title="Рассвет">🌅</button>
+          <button type="button" data-mood="day" title="День">☀️</button>
+          <button type="button" data-mood="dusk" title="Закат">🌆</button>
+          <button type="button" data-mood="night" title="Ночь">🌙</button>
+        </div>
+      </div>
       <div class="side-days"><strong id="sideDays">0</strong><span>дней вместе</span></div>
     </div>
   </aside>
@@ -98,6 +109,10 @@
       <div class="page-head">
         <h1>Наш саундтрек</h1>
         <p>Музыка, которая говорит о наших чувствах лучше любых слов.</p>
+      </div>
+      <div class="mood-play glass">
+        <div><div class="mini-label">Под настроение</div><div class="mood-play-text" id="moodPlayText">Подборка под время суток</div></div>
+        <button class="btn primary" id="moodPlayBtn" type="button">🎧 Включить</button>
       </div>
       <div class="chips" id="playlistChips">
         <button class="chip active" data-playlist="all">Все треки</button>
@@ -211,6 +226,31 @@
           <button class="sky-nav" id="skyNext" type="button" aria-label="Следующая звезда">›</button>
         </div>
       </div>
+    </section>
+
+    <!-- БУДУЩЕЕ -->
+    <section id="future" class="page">
+      <div class="page-head">
+        <h1>Наше будущее 🔮</h1>
+        <p>Список наших мечтаний. Отмечай то, что уже сбылось, и добавляй новые.</p>
+      </div>
+
+      <div class="glass reason-meter">
+        <div class="meter-top"><span id="dreamProgress"></span><b id="dreamPct"></b></div>
+        <div class="bar"><div class="bar-fill" id="dreamBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="chips" id="dreamChips" style="margin-top:24px;"></div>
+      <div class="dream-list" id="dreamList"></div>
+
+      <form class="glass pad dream-form" id="dreamForm" autocomplete="off">
+        <div class="mini-label">Новая мечта</div>
+        <div class="dream-form-row">
+          <input type="text" id="dreamInput" maxlength="90" placeholder="Например: поехать на Байкал зимой" required />
+          <select id="dreamCat" aria-label="Категория"></select>
+          <button class="btn primary" type="submit">Добавить ✨</button>
+        </div>
+      </form>
     </section>
   </main>
 </div>

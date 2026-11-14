@@ -610,6 +610,191 @@ $('#reasonBtn').addEventListener('click', e => {
 renderReasonGrid();
 updateReasonMeter();
 
+
+/* ============================================================
+   Время суток: рассвет / день / закат / ночь
+   ============================================================ */
+const MOODS = {
+  dawn:  { icon: '🌅', name: 'Рассвет', theme: '#1b0e22', playlist: 'happy',   btn: 'Утренняя подборка',  text: 'Тёплое утро с лёгкими песнями',    msg: 'Наступило утро 🌅' },
+  day:   { icon: '☀️', name: 'День',    theme: '#0c1b30', playlist: 'party',   btn: 'Дневная подборка',   text: 'Яркий день и бодрое настроение',  msg: 'Наступил день ☀️' },
+  dusk:  { icon: '🌆', name: 'Закат',   theme: '#170a1e', playlist: 'history', btn: 'Вечерняя подборка',  text: 'Закатные песни про нашу историю', msg: 'Наступил закат 🌆' },
+  night: { icon: '🌙', name: 'Ночь',    theme: '#0d0816', playlist: 'sad',     btn: 'Ночная подборка',    text: 'Тихие песни для долгих разговоров', msg: 'Наступила ночь 🌙' }
+};
+function moodByTime(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 11) return 'dawn';
+  if (h >= 11 && h < 17) return 'day';
+  if (h >= 17 && h < 22) return 'dusk';
+  return 'night';
+}
+let moodPref = safeStorage('local', 'moodPref');
+if (moodPref !== 'auto' && !MOODS[moodPref]) moodPref = 'auto';
+let curMood = null;
+
+function applyMood(announce) {
+  const m = moodPref === 'auto' ? moodByTime() : moodPref;
+  if (m !== curMood) {
+    const first = curMood === null;
+    curMood = m;
+    document.documentElement.dataset.mood = m;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', MOODS[m].theme);
+    $('#moodName').textContent = `${MOODS[m].icon} ${MOODS[m].name}`;
+    $('#moodPlayBtn').textContent = `🎧 ${MOODS[m].btn}`;
+    $('#moodPlayText').textContent = MOODS[m].text;
+    if (announce && !first) toast(MOODS[m].msg);
+  }
+  $$('#moodSwitch button').forEach(b => b.classList.toggle('on', b.dataset.mood === moodPref));
+}
+$$('#moodSwitch button').forEach(b => b.addEventListener('click', () => {
+  moodPref = b.dataset.mood;
+  safeStorage('local', 'moodPref', moodPref);
+  applyMood(false);
+  if (moodPref !== 'auto') toast(`Режим: ${MOODS[curMood].icon} ${MOODS[curMood].name}`);
+  else toast('Режим по времени суток ⏱');
+}));
+$('#moodPlayBtn').addEventListener('click', () => {
+  const key = MOODS[curMood].playlist;
+  const list = playlistsMap[key] && playlistsMap[key].length ? playlistsMap[key] : playlistsMap.all;
+  $$('#playlistChips .chip').forEach(c => c.classList.toggle('active', c.dataset.playlist === key));
+  currentPlaylist = list;
+  renderSongs();
+  playSong(list[0]);
+});
+applyMood(false);
+setInterval(() => applyMood(true), 30000);
+
+/* ============================================================
+   Наше будущее: список мечт
+   ============================================================ */
+const DREAM_CATS = { trip: '✈️ Поездки', home: '🏡 Дом', pet: '🐾 Питомец', together: '💞 Вместе' };
+const DREAMS = [
+  { id: 't1', cat: 'trip', text: 'Съездить вдвоём в санаторий', done: 'Август 2026' },
+  { id: 't2', cat: 'trip', text: 'Увидеть море и встретить на нём рассвет' },
+  { id: 't3', cat: 'trip', text: 'Погулять по Санкт-Петербургу' },
+  { id: 't4', cat: 'trip', text: 'Слетать на самолёте в другую страну' },
+  { id: 't5', cat: 'trip', text: 'Поехать в горы и смотреть на звёзды' },
+  { id: 't6', cat: 'trip', text: 'Увидеть северное сияние' },
+  { id: 'h1', cat: 'home', text: 'Съехаться и начать жить вместе' },
+  { id: 'h2', cat: 'home', text: 'Выбрать общий диван для киновечеров' },
+  { id: 'h3', cat: 'home', text: 'Готовить вместе по воскресеньям на нашей кухне' },
+  { id: 'h4', cat: 'home', text: 'Повесить на стену наши фото' },
+  { id: 'h5', cat: 'home', text: 'Украсить дом гирляндами и уютным светом' },
+  { id: 'p1', cat: 'pet', text: 'Завести котёнка 🐱' },
+  { id: 'p2', cat: 'pet', text: 'Придумать ему имя вместе' },
+  { id: 'p3', cat: 'pet', text: 'Купить самый мягкий лежак' },
+  { id: 'p4', cat: 'pet', text: 'Сделать семейное фото вместе с питомцем' },
+  { id: 'g1', cat: 'together', text: 'Отметить три года вместе' },
+  { id: 'g2', cat: 'together', text: 'Научиться танцевать вместе' },
+  { id: 'g3', cat: 'together', text: 'Построить огромный замок в Minecraft' },
+  { id: 'g4', cat: 'together', text: 'Приготовить вместе праздничный ужин' },
+  { id: 'g5', cat: 'together', text: 'Написать друг другу письма на будущее' },
+  { id: 'g6', cat: 'together', text: 'Отпраздновать пять лет вместе' }
+];
+const DREAM_STATE_KEY = 'dreamsState', DREAM_CUSTOM_KEY = 'dreamsCustom';
+function loadJSON(key, fallback) {
+  try { const v = JSON.parse(safeStorage('local', key)); return v && typeof v === typeof fallback ? v : fallback; }
+  catch (e) { return fallback; }
+}
+let dreamState = loadJSON(DREAM_STATE_KEY, {});
+let dreamCustom = Array.isArray(loadJSON(DREAM_CUSTOM_KEY, [])) ? loadJSON(DREAM_CUSTOM_KEY, []) : [];
+let dreamFilter = 'all';
+
+function allDreams() { return DREAMS.concat(dreamCustom.filter(d => d && DREAM_CATS[d.cat] && typeof d.text === 'string')); }
+function dreamDone(d) {
+  if (Object.prototype.hasOwnProperty.call(dreamState, d.id)) return dreamState[d.id] || null;
+  return d.done || null;
+}
+function saveDreams() {
+  safeStorage('local', DREAM_STATE_KEY, JSON.stringify(dreamState));
+  safeStorage('local', DREAM_CUSTOM_KEY, JSON.stringify(dreamCustom));
+}
+
+function renderDreams() {
+  const all = allDreams();
+  const doneN = all.filter(dreamDone).length;
+  $('#dreamProgress').textContent = `Сбылось мечтаний: ${doneN} из ${all.length}`;
+  $('#dreamPct').textContent = Math.round((doneN / all.length) * 100) + '%';
+  $('#dreamBar').style.width = (doneN / all.length) * 100 + '%';
+
+  const chips = $('#dreamChips');
+  chips.innerHTML = '';
+  [['all', 'Все мечты'], ...Object.entries(DREAM_CATS)].forEach(([k, label]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (k === dreamFilter ? ' active' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => { dreamFilter = k; renderDreams(); });
+    chips.appendChild(b);
+  });
+
+  const list = $('#dreamList');
+  list.innerHTML = '';
+  all.filter(d => dreamFilter === 'all' || d.cat === dreamFilter).forEach(d => {
+    const when = dreamDone(d);
+    const el = document.createElement('div');
+    el.className = 'dream' + (when ? ' done' : '');
+    el.setAttribute('role', 'button');
+    el.tabIndex = 0;
+    el.innerHTML = '<div class="dream-box">✓</div><div class="dream-body"><div class="dream-text"></div><div class="dream-meta"></div></div>';
+    el.querySelector('.dream-text').textContent = d.text;
+    el.querySelector('.dream-meta').textContent = when ? `Сбылось: ${when} 💖` : DREAM_CATS[d.cat];
+    const toggle = e => {
+      const x = e.clientX || el.getBoundingClientRect().left + 30;
+      const y = e.clientY || el.getBoundingClientRect().top + 30;
+      if (when) dreamState[d.id] = null;
+      else {
+        dreamState[d.id] = new Date().toLocaleDateString('ru-RU');
+        burst(x, y, 12);
+        toast('Ещё одна мечта сбылась 💫');
+      }
+      saveDreams();
+      renderDreams();
+    };
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } });
+    if (dreamCustom.includes(d)) {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'dream-del';
+      del.title = 'Удалить';
+      del.textContent = '✕';
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        dreamCustom = dreamCustom.filter(x => x !== d);
+        delete dreamState[d.id];
+        saveDreams();
+        renderDreams();
+      });
+      el.appendChild(del);
+    }
+    list.appendChild(el);
+  });
+}
+
+(function initDreamForm() {
+  const sel = $('#dreamCat');
+  Object.entries(DREAM_CATS).forEach(([k, label]) => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = label;
+    if (k === 'together') o.selected = true;
+    sel.appendChild(o);
+  });
+  $('#dreamForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const inp = $('#dreamInput');
+    const text = inp.value.trim();
+    if (!text) return;
+    dreamCustom.push({ id: 'c' + Date.now(), cat: sel.value, text });
+    saveDreams();
+    inp.value = '';
+    if (dreamFilter !== 'all') dreamFilter = sel.value;
+    renderDreams();
+    toast('Мечта добавлена ✨');
+  });
+})();
+renderDreams();
+
 /* ============================================================
    Ачивки
    ============================================================ */
