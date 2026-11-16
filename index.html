@@ -50,6 +50,7 @@
       <button class="nav-btn" data-page="achievements"><span class="ico">🏆</span>Наши ачивки</button>
       <button class="nav-btn" data-page="sky"><span class="ico">🌌</span>Звёздное небо</button>
       <button class="nav-btn" data-page="future"><span class="ico">🔮</span>Наше будущее</button>
+      <button class="nav-btn" data-page="games"><span class="ico">🎮</span>Игры</button>
     </nav>
     <div class="side-foot">
       <div class="mood" id="moodSwitch">
@@ -251,6 +252,96 @@
           <button class="btn primary" type="submit">Добавить ✨</button>
         </div>
       </form>
+    </section>
+
+    <!-- ИГРЫ -->
+    <section id="games" class="page">
+      <div class="page-head">
+        <h1>Наши игры 🎮</h1>
+        <p>Три мини-игры для нас двоих. Играй, набирай очки и ставь рекорды!</p>
+      </div>
+
+      <div class="glass pad games-score">
+        <div class="score-total">
+          <div class="mini-label">Общий счёт очков</div>
+          <div class="score-num" id="totalScore">0</div>
+        </div>
+        <div class="score-stats">
+          <div><b id="gamesPlayed">0</b><span>игр сыграно</span></div>
+          <div><b id="gamesBest">0</b><span>лучший результат</span></div>
+        </div>
+      </div>
+
+      <div class="chips" id="gameChips">
+        <button class="chip active" data-game="memory">📸 Мемори</button>
+        <button class="chip" data-game="clicker">💰 Копилка любви</button>
+        <button class="chip" data-game="catcher">💗 Ловец сердечек</button>
+      </div>
+
+      <!-- Мемори -->
+      <div class="game-panel active" id="game-memory">
+        <div class="glass pad game-head">
+          <div>
+            <h2 class="card-title">Мемори с фото</h2>
+            <p class="text">Найди все пары одинаковых картинок. Чем быстрее — тем больше очков!</p>
+          </div>
+          <div class="game-stats">
+            <div><b id="memMoves">0</b><span>ходов</span></div>
+            <div><b id="memTime">0:00</b><span>время</span></div>
+            <div><b id="memBest">—</b><span>рекорд</span></div>
+          </div>
+        </div>
+        <div class="memory-grid" id="memoryGrid"></div>
+        <div class="game-actions">
+          <button class="btn primary" id="memRestart" type="button">🔄 Новая игра</button>
+        </div>
+      </div>
+
+      <!-- Кликер -->
+      <div class="game-panel" id="game-clicker">
+        <div class="glass pad game-head">
+          <div>
+            <h2 class="card-title">Копилка любви</h2>
+            <p class="text">Кликай по сердечку и копи любовь. Чем больше кликов — тем больше очков!</p>
+          </div>
+          <div class="game-stats">
+            <div><b id="clickCount">0</b><span>кликов</span></div>
+            <div><b id="clickScore">0</b><span>очков</span></div>
+            <div><b id="clickBest">—</b><span>рекорд</span></div>
+          </div>
+        </div>
+        <div class="clicker-area">
+          <button class="clicker-heart" id="clickerHeart" type="button">💗</button>
+          <div class="clicker-timer">Осталось: <b id="clickerTime">30</b> сек</div>
+        </div>
+        <div class="game-actions">
+          <button class="btn primary" id="clickerStart" type="button">▶ Начать</button>
+        </div>
+      </div>
+
+      <!-- Ловец -->
+      <div class="game-panel" id="game-catcher">
+        <div class="glass pad game-head">
+          <div>
+            <h2 class="card-title">Ловец сердечек</h2>
+            <p class="text">Лови падающие сердечки! Пропустишь три — игра закончится.</p>
+          </div>
+          <div class="game-stats">
+            <div><b id="catchScore">0</b><span>поймано</span></div>
+            <div><b id="catchLives">3</b><span>жизни</span></div>
+            <div><b id="catchBest">—</b><span>рекорд</span></div>
+          </div>
+        </div>
+        <div class="catcher-area" id="catcherArea">
+          <div class="catcher-basket" id="catcherBasket">🧺</div>
+        </div>
+        <div class="game-actions">
+          <button class="btn primary" id="catcherStart" type="button">▶ Начать</button>
+        </div>
+      </div>
+
+      <h2 class="section-title">Рекорды и ачивки <span>🏆</span></h2>
+      <div class="ach-grid" id="gameAchList"></div>
     </section>
   </main>
 </div>

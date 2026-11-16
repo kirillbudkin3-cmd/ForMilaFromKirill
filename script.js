@@ -118,6 +118,7 @@ function showPage(id, push = true) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (id !== 'videos') $$('.video-grid video').forEach(v => v.pause());
   if (id === 'sky') skyCtl.start(); else skyCtl.stop();
+  if (id !== 'games' && window.stopAllGames) window.stopAllGames();
   observeReveals();
 }
 $$('.nav-btn').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
@@ -143,8 +144,8 @@ function observeReveals() {
 /* ============================================================
    Счётчик и годовщина
    ============================================================ */
-const START = new Date(2024, 9, 12, 22, 51); // 12 октября 2024, 22:51
-const START_SHIFT = START - new Date(2024, 9, 12); // 22 ч 51 мин от полуночи
+const START = new Date(2024, 9, 12, 22, 51);
+const START_SHIFT = START - new Date(2024, 9, 12);
 
 function diffYMD(from, to) {
   let y = to.getFullYear() - from.getFullYear();
@@ -162,7 +163,6 @@ function setCounter(id, labelId, n, forms) {
 
 function updateCounter() {
   const now = new Date();
-  // сдвигаем «сейчас» так, чтобы новый день отношений наступал в 22:51
   const { y, m, d } = diffYMD(START, new Date(now - START_SHIFT));
   setCounter('cYears', 'cYearsL', y, ['год', 'года', 'лет']);
   setCounter('cMonths', 'cMonthsL', m, ['месяц', 'месяца', 'месяцев']);
@@ -175,7 +175,6 @@ function updateCounter() {
   $('#tMinutes').textContent = Math.floor(ms / 6e4).toLocaleString('ru-RU');
   $('#sideDays').textContent = totalDays.toLocaleString('ru-RU');
 
-  // ближайшая годовщина (в 22:51)
   let next = new Date(now.getFullYear(), START.getMonth(), START.getDate(), START.getHours(), START.getMinutes());
   const sameDay = now.toDateString() === next.toDateString();
   if (next < now && !sameDay) next = new Date(now.getFullYear() + 1, START.getMonth(), START.getDate(), START.getHours(), START.getMinutes());
@@ -185,13 +184,11 @@ function updateCounter() {
   const num = $('#annivNum');
   const yWord = plural(years, ['год', 'года', 'лет']);
   if (msLeft <= 0) {
-    // годовщина уже наступила (до конца суток)
     num.classList.remove('hours');
     num.textContent = '🎉 Сегодня!';
     $('#annivText').textContent = `Нам ${years} ${yWord} вместе. С годовщиной, любимая! 💖`;
     card.classList.add('today');
   } else if (msLeft < 864e5) {
-    // осталось меньше суток — часы, минуты и секунды
     const h = Math.floor(msLeft / 36e5);
     const mi = Math.floor((msLeft % 36e5) / 6e4);
     const se = Math.floor((msLeft % 6e4) / 1e3);
@@ -343,7 +340,6 @@ const songNames = [
   'Оплот', 'Громче, чем все', 'В разработке', 'В разработке'
 ].map(s => s.trim());
 
-// индекс остаётся прежним => файл songs/song{index+1}.mp3 не меняется
 const isReady = i => songNames[i] && songNames[i] !== 'В разработке';
 const ALL_IDS = songNames.map((_, i) => i).filter(isReady);
 const playlistsMap = {
@@ -465,7 +461,6 @@ $$('#playlistChips .chip').forEach(btn => btn.addEventListener('click', () => {
   renderSongs();
 }));
 
-// видео и музыка не играют одновременно
 $$('.video-grid video').forEach(v => v.addEventListener('play', () => {
   if (!audio.paused) { audio.pause(); setPlayingUI(false); }
   $$('.video-grid video').forEach(o => { if (o !== v) o.pause(); });
@@ -610,9 +605,8 @@ $('#reasonBtn').addEventListener('click', e => {
 renderReasonGrid();
 updateReasonMeter();
 
-
 /* ============================================================
-   Время суток: рассвет / день / закат / ночь
+   Время суток
    ============================================================ */
 const MOODS = {
   dawn:  { icon: '🌅', name: 'Рассвет', theme: '#1b0e22', playlist: 'happy',   btn: 'Утренняя подборка',  text: 'Тёплое утро с лёгкими песнями',    msg: 'Наступило утро 🌅' },
@@ -665,7 +659,7 @@ applyMood(false);
 setInterval(() => applyMood(true), 30000);
 
 /* ============================================================
-   Наше будущее: список мечт
+   Наше будущее
    ============================================================ */
 const DREAM_CATS = { trip: '✈️ Поездки', home: '🏡 Дом', pet: '🐾 Питомец', together: '💞 Вместе' };
 const DREAMS = [
@@ -1068,6 +1062,327 @@ const skyCtl = (function () {
   });
 
   return { start, stop };
+})();
+
+/* ============================================================
+   ИГРЫ
+   ============================================================ */
+const stopAllGamesFns = [];
+window.stopAllGames = () => stopAllGamesFns.forEach(fn => fn());
+
+(function initGames() {
+  const GAME_KEY = 'gamesState';
+  let gs = {};
+  try { gs = JSON.parse(safeStorage('local', GAME_KEY)) || {}; } catch (e) { gs = {}; }
+  function saveGS() { safeStorage('local', GAME_KEY, JSON.stringify(gs)); }
+
+  function updateTotal() {
+    $('#totalScore').textContent = (gs.totalScore || 0).toLocaleString('ru-RU');
+    $('#gamesPlayed').textContent = gs.gamesPlayed || 0;
+    $('#gamesBest').textContent = (gs.bestScore || 0).toLocaleString('ru-RU');
+    renderGameAch();
+  }
+
+  const gameAch = [
+    { id: 'mem1', icon: '🧠', title: 'Первая пара', desc: 'Найти первую пару в мемори.', check: () => gs.memBest !== undefined },
+    { id: 'mem2', icon: '🏆', title: 'Мастер памяти', desc: 'Пройти мемори за 20 ходов или меньше.', check: () => (gs.memBestMoves || 999) <= 20 },
+    { id: 'mem3', icon: '⚡', title: 'Скоростная', desc: 'Пройти мемори быстрее 60 секунд.', check: () => (gs.memBestTime || 999) <= 60 },
+    { id: 'clk1', icon: '👆', title: 'Первый клик', desc: 'Сделать первый клик в копилке.', check: () => gs.clickBest !== undefined },
+    { id: 'clk2', icon: '💰', title: 'Богачка', desc: 'Набрать 100 очков в кликере.', check: () => (gs.clickBest || 0) >= 100 },
+    { id: 'clk3', icon: '💎', title: 'Миллиардерша', desc: 'Набрать 200 очков в кликере.', check: () => (gs.clickBest || 0) >= 200 },
+    { id: 'cat1', icon: '🧺', title: 'Первый улов', desc: 'Поймать первое сердечко.', check: () => gs.catchBest !== undefined },
+    { id: 'cat2', icon: '💗', title: 'Ловкачка', desc: 'Поймать 20 сердечек за игру.', check: () => (gs.catchBest || 0) >= 20 },
+    { id: 'cat3', icon: '🌟', title: 'Супер-пупер', desc: 'Поймать 40 сердечек за игру.', check: () => (gs.catchBest || 0) >= 40 }
+  ];
+  function renderGameAch() {
+    const box = $('#gameAchList');
+    if (!box) return;
+    box.innerHTML = '';
+    gameAch.forEach(a => {
+      const ok = a.check();
+      const el = document.createElement('div');
+      el.className = 'ach reveal in ' + (ok ? 'r-gold' : 'r-common');
+      el.innerHTML = `<div class="ach-icon">${a.icon}</div><div><h3>${a.title}<span class="ach-rarity">${ok ? 'Получено' : 'Не открыто'}</span></h3><p>${a.desc}</p></div>`;
+      box.appendChild(el);
+    });
+  }
+
+  function addScore(points) {
+    gs.totalScore = (gs.totalScore || 0) + points;
+    gs.gamesPlayed = (gs.gamesPlayed || 0) + 1;
+    if (points > (gs.bestScore || 0)) gs.bestScore = points;
+    saveGS();
+    updateTotal();
+  }
+
+  /* ---------- Мемори ---------- */
+  const MEM_PAIRS = 6;
+  const MEM_ICONS = ['💗', '🌸', '✨', '🌙', '🦋', '🍓'];
+  let memFlipped = [], memMatched = 0, memMoves = 0, memTimer = null, memSeconds = 0, memLock = false;
+
+  function stopMemoryTimer() { if (memTimer) { clearInterval(memTimer); memTimer = null; } }
+
+  function initMemory() {
+    stopMemoryTimer();
+    memFlipped = [];
+    memMatched = 0;
+    memMoves = 0;
+    memSeconds = 0;
+    memLock = false;
+    $('#memMoves').textContent = '0';
+    $('#memTime').textContent = '0:00';
+    $('#memBest').textContent = gs.memBest ? gs.memBest + ' оч.' : '—';
+
+    const grid = $('#memoryGrid');
+    grid.innerHTML = '';
+    const cards = [];
+    let testDone = false;
+
+    function buildWithFallback(usePhotos) {
+      if (testDone) return;
+      testDone = true;
+      for (let i = 0; i < MEM_PAIRS; i++) {
+        const value = usePhotos ? 'photo' + (i + 1) : MEM_ICONS[i];
+        const img = usePhotos ? `img/photo${i + 1}.jpg` : null;
+        cards.push({ pair: i, img });
+        cards.push({ pair: i, img });
+      }
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      cards.forEach((c, idx) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mem-card';
+        b.dataset.pair = c.pair;
+        b.dataset.idx = idx;
+        if (c.img) {
+          b.innerHTML = `<div class="mem-back">💗</div><div class="mem-front"><img src="${c.img}" alt="" loading="lazy"></div>`;
+        } else {
+          b.innerHTML = `<div class="mem-back">💗</div><div class="mem-front">${MEM_ICONS[c.pair]}</div>`;
+        }
+        b.addEventListener('click', () => onMemClick(b));
+        grid.appendChild(b);
+      });
+      startMemoryTimer();
+    }
+
+    const imgTest = new Image();
+    imgTest.onload = () => buildWithFallback(true);
+    imgTest.onerror = () => buildWithFallback(false);
+    imgTest.src = 'img/photo1.jpg';
+    setTimeout(() => { if (!testDone) buildWithFallback(false); }, 1500);
+  }
+
+  function startMemoryTimer() {
+    memTimer = setInterval(() => {
+      memSeconds++;
+      $('#memTime').textContent = fmt(memSeconds);
+    }, 1000);
+  }
+
+  function onMemClick(card) {
+    if (memLock || card.classList.contains('matched') || card.classList.contains('flipped')) return;
+    card.classList.add('flipped');
+    memFlipped.push(card);
+    if (memFlipped.length === 2) {
+      memMoves++;
+      $('#memMoves').textContent = memMoves;
+      memLock = true;
+      const [a, b] = memFlipped;
+      if (a.dataset.pair === b.dataset.pair) {
+        setTimeout(() => {
+          a.classList.add('matched');
+          b.classList.add('matched');
+          memMatched++;
+          memFlipped = [];
+          memLock = false;
+          if (memMatched === MEM_PAIRS) finishMemory();
+        }, 400);
+      } else {
+        setTimeout(() => {
+          a.classList.remove('flipped');
+          b.classList.remove('flipped');
+          memFlipped = [];
+          memLock = false;
+        }, 700);
+      }
+    }
+  }
+
+  function finishMemory() {
+    stopMemoryTimer();
+    const score = Math.max(10, 100 - memMoves * 2 - Math.floor(memSeconds / 3));
+    addScore(score);
+    if (!gs.memBest || score > gs.memBest) gs.memBest = score;
+    if (!gs.memBestMoves || memMoves < gs.memBestMoves) gs.memBestMoves = memMoves;
+    if (!gs.memBestTime || memSeconds < gs.memBestTime) gs.memBestTime = memSeconds;
+    saveGS();
+    $('#memBest').textContent = gs.memBest + ' оч.';
+    toast(`Мемори пройдено! +${score} очков 💗`);
+    renderGameAch();
+  }
+
+  $('#memRestart').addEventListener('click', initMemory);
+
+  /* ---------- Кликер ---------- */
+  const CLICK_DURATION = 30;
+  let clickCount = 0, clickTimer = null, clickLeft = CLICK_DURATION, clickRunning = false;
+
+  function stopClicker() {
+    if (clickTimer) { clearInterval(clickTimer); clickTimer = null; }
+    clickRunning = false;
+  }
+
+  function startClicker() {
+    stopClicker();
+    clickCount = 0;
+    clickLeft = CLICK_DURATION;
+    clickRunning = true;
+    $('#clickCount').textContent = '0';
+    $('#clickScore').textContent = '0';
+    $('#clickerTime').textContent = CLICK_DURATION;
+    $('#clickerStart').disabled = true;
+    $('#clickerStart').textContent = '⏳ Игра...';
+
+    clickTimer = setInterval(() => {
+      clickLeft--;
+      $('#clickerTime').textContent = clickLeft;
+      if (clickLeft <= 0) finishClicker();
+    }, 1000);
+  }
+
+  function finishClicker() {
+    stopClicker();
+    const score = clickCount;
+    addScore(score);
+    if (!gs.clickBest || score > gs.clickBest) gs.clickBest = score;
+    saveGS();
+    $('#clickBest').textContent = gs.clickBest + ' оч.';
+    $('#clickerStart').disabled = false;
+    $('#clickerStart').textContent = '▶ Ещё раз';
+    toast(`Копилка закрыта! ${score} очков 💰`);
+    renderGameAch();
+  }
+
+  $('#clickerHeart').addEventListener('click', (e) => {
+    if (!clickRunning) return;
+    clickCount++;
+    $('#clickCount').textContent = clickCount;
+    $('#clickScore').textContent = clickCount;
+    burst(e.clientX, e.clientY, 3);
+  });
+
+  $('#clickerStart').addEventListener('click', startClicker);
+  if (gs.clickBest !== undefined) $('#clickBest').textContent = gs.clickBest + ' оч.';
+
+  /* ---------- Ловец ---------- */
+  let catchTimer = null, catchSpawnTimer = null, catchScoreVal = 0, catchLivesVal = 3, catchRunning = false;
+
+  function stopCatcher() {
+    if (catchTimer) { clearInterval(catchTimer); catchTimer = null; }
+    if (catchSpawnTimer) { clearInterval(catchSpawnTimer); catchSpawnTimer = null; }
+    catchRunning = false;
+    const area = $('#catcherArea');
+    if (area) $$('.falling-heart', area).forEach(el => el.remove());
+  }
+
+  function startCatcher() {
+    stopCatcher();
+    catchScoreVal = 0;
+    catchLivesVal = 3;
+    catchRunning = true;
+    $('#catchScore').textContent = '0';
+    $('#catchLives').textContent = '3';
+    $('#catcherStart').disabled = true;
+    $('#catcherStart').textContent = '⏳ Игра...';
+
+    catchSpawnTimer = setInterval(spawnFalling, 700);
+    catchTimer = setInterval(() => {
+      const area = $('#catcherArea');
+      if (!area) return;
+      const areaRect = area.getBoundingClientRect();
+      const basket = $('#catcherBasket');
+      const basketRect = basket.getBoundingClientRect();
+      $$('.falling-heart', area).forEach(el => {
+        const top = parseFloat(el.style.top) || 0;
+        el.style.top = (top + 4) + 'px';
+        const elRect = el.getBoundingClientRect();
+        if (elRect.bottom >= basketRect.top && elRect.top < basketRect.bottom &&
+            elRect.right > basketRect.left && elRect.left < basketRect.right) {
+          el.remove();
+          catchScoreVal++;
+          $('#catchScore').textContent = catchScoreVal;
+          burst(elRect.left + elRect.width / 2, elRect.top + elRect.height / 2, 4);
+          return;
+        }
+        if (top > areaRect.height - 20) {
+          el.remove();
+          catchLivesVal--;
+          $('#catchLives').textContent = catchLivesVal;
+          if (catchLivesVal <= 0) finishCatcher();
+        }
+      });
+    }, 30);
+
+    const area = $('#catcherArea');
+    area.onmousemove = (e) => moveBasket(e.clientX);
+    area.ontouchmove = (e) => { e.preventDefault(); moveBasket(e.touches[0].clientX); };
+  }
+
+  function moveBasket(clientX) {
+    const area = $('#catcherArea');
+    const basket = $('#catcherBasket');
+    if (!area || !basket) return;
+    const r = area.getBoundingClientRect();
+    const x = Math.max(0, Math.min(r.width - basket.offsetWidth, clientX - r.left - basket.offsetWidth / 2));
+    basket.style.left = x + 'px';
+  }
+
+  function spawnFalling() {
+    if (!catchRunning) return;
+    const area = $('#catcherArea');
+    if (!area) return;
+    const el = document.createElement('div');
+    el.className = 'falling-heart';
+    const icons = ['💗', '💖', '💕', '💞', '❤️'];
+    el.textContent = icons[Math.floor(Math.random() * icons.length)];
+    el.style.left = Math.random() * (area.clientWidth - 40) + 'px';
+    el.style.top = '-40px';
+    el.style.fontSize = (18 + Math.random() * 14) + 'px';
+    area.appendChild(el);
+  }
+
+  function finishCatcher() {
+    stopCatcher();
+    const score = catchScoreVal;
+    addScore(score);
+    if (!gs.catchBest || score > gs.catchBest) gs.catchBest = score;
+    saveGS();
+    $('#catchBest').textContent = gs.catchBest + ' шт.';
+    $('#catcherStart').disabled = false;
+    $('#catcherStart').textContent = '▶ Ещё раз';
+    toast(`Игра окончена! Поймано: ${score} 💗`);
+    renderGameAch();
+  }
+
+  $('#catcherStart').addEventListener('click', startCatcher);
+  if (gs.catchBest !== undefined) $('#catchBest').textContent = gs.catchBest + ' шт.';
+
+  /* ---------- переключение игр ---------- */
+  $$('#gameChips .chip').forEach(chip => chip.addEventListener('click', () => {
+    $$('#gameChips .chip').forEach(c => c.classList.toggle('active', c === chip));
+    $$('.game-panel').forEach(p => p.classList.toggle('active', p.id === 'game-' + chip.dataset.game));
+    stopMemoryTimer();
+    stopClicker();
+    stopCatcher();
+  }));
+
+  stopAllGamesFns.push(stopMemoryTimer, stopClicker, stopCatcher);
+
+  updateTotal();
+  initMemory();
 })();
 
 /* ============================================================
